@@ -1,3 +1,4 @@
+// Node 16.10.0 Runtime
 var got = require('got');
 
 const pageId = $secure.STATUSPAGE_PAGEID;
