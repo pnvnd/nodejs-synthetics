@@ -1,57 +1,49 @@
-// Node 16.10.0 Runtime
-const got = require('got');
+const httpClient = require('urllib');
 
-var account_id = '#######'
-var endpoint = 'https://data.mongodb-api.com/app/xxxxxxx/endpoint/data/v1/action/find';
-var headers = { 
-  'Content-Type': 'application/json',
-  'Access-Control-Request-Headers': '*',
-  'Api-Key': $secure.MONGODB_ATLAS_API_KEY,
-  'Accept': 'application/json'
-}
+// Get Data from MongoDB Atlas Administration API endpoint
+const publicKey = $secure.MONGODB_PUBLIC_KEY;
+const privateKey = $secure.MONGODB_PRIVATE_KEY;
 
-var data = {
-  "dataSource": "Cluster0", 
-  "database": "sample_supplies", 
-  "collection": "sales", 
-  "filter": {
-    "saleDate": {
-      "$gte": { "$date": { "$numberLong": (Date.now()-86400000).toString() } }, // Check 24 hours ago
-      "$lt": { "$date": { "$numberLong": (Date.now()).toString() } } // Until now
-    }
-  }, 
-  "sort": {"saleDate": -1}, 
-  //"limit": 3
+const groupId = '61af9740cf271d40e57e1693';
+const hostName = 'cluster0-shard-00-00.tnu7n.mongodb.net:27017';
+const granularity = 'PT1M';
+const period = 'PT1M';
+const get_uri = `https://cloud.mongodb.com/api/atlas/v1.0/groups/${groupId}/hosts/${hostName}/fts/metrics/measurements?granularity=${granularity}&period=${period}`;
+
+get_options = {
+  method: 'GET',
+  rejectUnauthorized: false,
+  digestAuth: `${publicKey}:${privateKey}`,
 };
 
-var opts = {
-  url: endpoint,
-  headers: headers,
-  json: data
-};
-
-(async () => {
-  try {
-    let response = await got.post(opts);
-    let payload = JSON.parse(response.body);
-    
-    for (let i=0; i < payload.documents.length; i++) {
-      //payload.documents[i]["customLogAttribute"] = "MongoDbAtlasCustomSample"
-      payload.documents[i]["eventType"] = "MongoDbAtlasCustomSample"
-    }
-
-    console.log(payload.documents);
-    
-    // got.post('https://log-api.newrelic.com/log/v1', {
-    got.post(`https://insights-collector.newrelic.com/v1/accounts/${account_id}/events`, {
-      headers: {
-        'Api-Key': $secure.INGEST_KEY,
-        'Content-Type': 'application/json'
-      },
-      json: payload.documents
-    });
-    
-  } catch (error) {
-    console.log(error.response.body);
+httpClient.request(get_uri, get_options, function (err, data, res) {
+  if (err) {
+    throw err;
   }
-})();
+  let payload = JSON.parse(data);
+  for (let i=0; i < payload.hardwareMeasurements.length; i++) {
+    payload.hardwareMeasurements[i]["eventType"] = "MongoDbAtlasSample"
+  }
+  // console.log(payload.hardwareMeasurements);
+
+  // Send data from MongoDB Atlas to New Relic Event API endpoint
+  const account_id = $secure.ACCOUNT_ID;
+  const post_uri = `https://insights-collector.newrelic.com/v1/accounts/${account_id}/events`;
+
+  post_options = {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Api-Key': $secure.INGEST_KEY
+    },
+    data: payload.hardwareMeasurements
+  };
+
+  httpClient.request(post_uri, post_options, function (err, data, res) {
+    if (err) {
+      throw err;
+    }
+    // console.log("Sent to New Relic Event API");
+  });
+});
+
