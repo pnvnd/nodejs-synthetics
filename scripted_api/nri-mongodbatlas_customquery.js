@@ -1,13 +1,15 @@
+/* Create secure credentials in New Relic and replace "process.env.XXX" with "$secure.XXX" */
 const got = require('got');
 
-var account_id = '#######'
-var endpoint = 'https://data.mongodb-api.com/app/xxxxxxx/endpoint/data/v1/action/find';
+const projectId = "data-yryso";
+var endpoint = `https://data.mongodb-api.com/app/${projectId}/endpoint/data/v1/action/find`;
+
 var headers = { 
   'Content-Type': 'application/json',
   'Access-Control-Request-Headers': '*',
-  'Api-Key': $secure.MONGODB_ATLAS_API_KEY,
+  'Api-Key': process.env.MONGODB_ATLAS_API_KEY,
   'Accept': 'application/json'
-}
+};
 
 var data = {
   "dataSource": "Cluster0", 
@@ -40,11 +42,13 @@ var opts = {
     }
 
     console.log(payload.documents);
-    
-    // got.post('https://log-api.newrelic.com/log/v1', {
+
+    var account_id = process.env.ACCOUNT_ID;
+
     got.post(`https://insights-collector.newrelic.com/v1/accounts/${account_id}/events`, {
+    // got.post('https://log-api.newrelic.com/log/v1', {
       headers: {
-        'Api-Key': $secure.INGEST_KEY,
+        'Api-Key': process.env.NEW_RELIC_LICENSE_KEY,
         'Content-Type': 'application/json'
       },
       json: payload.documents
