@@ -1,19 +1,29 @@
-var account_id = '#######';
+/* Create secure credentials in New Relic and replace "process.env.XXX" with "$secure.XXX" */
 const got = require('got');
 const crypto = require('crypto');
 // const fs = require('fs');
 // const jwt = require('jsonwebtoken');
-// const privateKeyFile = $secure.SNOWFLAKE_PRIVATE_KEY;
-// secure credential doesn't seem to work with encrypted private key
 
+// You can use https://www.base64encode.net to decode RSA private keys.
+// If string is too long, split into multiple parts
+const buff = new Buffer.from(process.env.SNOWFLAKE_PRIVATE_KEY_1A + process.env.SNOWFLAKE_PRIVATE_KEY_1B, 'base64');
+
+// New Relic supports secure credentials up to 10000 characters
+// const buff = new Buffer.from($secure.SNOWFLAKE_PRIVATE_KEY, 'base64'); 
+const privateKeyFile = buff.toString("utf-8");
+
+/* Alternatively, paste the entire private key in the script
 const privateKeyFile = `-----BEGIN ENCRYPTED PRIVATE KEY-----
 MIIFHDBOBgkqhkiG9w0BBQ0wQTApBgkqhkiG9w0BBQwwHAQIS6AhT/z/oEcCAggA
 ...
 7w8qLnN52lcZTeMwmUyD7w==
 -----END ENCRYPTED PRIVATE KEY-----`;
+*/
 
-const mypassphrase = $secure.SNOWFLAKE_PASSPHRASE;   // use synthetic secure credential here
-const qualified_username = "FJWFGGY-YS51852.DATACRUNCH"; // account_identifier.toUpperCase() + "." + user
+const mypassphrase = process.env.SNOWFLAKE_PASSPHRASE;   // use synthetic secure credential here
+const account_identifier = "fjwfggy-ys51852";
+const user = "DATACRUNCH";
+const qualified_username = account_identifier.toUpperCase() + "." + user;
 
 privateKeyObject = crypto.createPrivateKey({ key: privateKeyFile, format: 'pem', passphrase: mypassphrase });
 var privateKey = privateKeyObject.export({ format: 'pem', type: 'pkcs8' });
@@ -38,21 +48,21 @@ var unsignedJwt = encodedJwtHeader + '.' + encodedJwtClaimset;
 const encodedSignature = crypto.createSign('RSA-SHA256').update(unsignedJwt).sign(privateKey, 'base64');
 const jwt = encodedJwtHeader + '.' + encodedJwtClaimset + '.' + encodedSignature;
 
-//console.log(jwt);
+// console.log(jwt);
 
 var snowflake_sql=`select OBJECT_CONSTRUCT_KEEP_NULL('eventType', 'SnowflakeAccount',
-    'CREDITS_USED_COMPUTE_AVERAGE', avg(CREDITS_USED_COMPUTE), 
-    'CREDITS_USED_COMPUTE_SUM', sum(CREDITS_USED_COMPUTE),
-    'CREDITS_USED_CLOUD_SERVICES_AVERAGE', avg(CREDITS_USED_CLOUD_SERVICES), 
-    'CREDITS_USED_CLOUD_SERVICES_SUM', sum(CREDITS_USED_CLOUD_SERVICES), 
-    'CREDITS_USED_AVERAGE', avg(CREDITS_USED), 
-    'CREDITS_USED_SUM', sum(CREDITS_USED)
+  'CREDITS_USED_COMPUTE_AVERAGE', avg(CREDITS_USED_COMPUTE), 
+  'CREDITS_USED_COMPUTE_SUM', sum(CREDITS_USED_COMPUTE),
+  'CREDITS_USED_CLOUD_SERVICES_AVERAGE', avg(CREDITS_USED_CLOUD_SERVICES), 
+  'CREDITS_USED_CLOUD_SERVICES_SUM', sum(CREDITS_USED_CLOUD_SERVICES), 
+  'CREDITS_USED_AVERAGE', avg(CREDITS_USED), 
+  'CREDITS_USED_SUM', sum(CREDITS_USED)
 ) as json_result
 from METERING_HISTORY
-where start_time >= date_trunc(day, current_date) and NAME='COMPUTE_WH'`;
+where start_time >= date_trunc(day, current_date)`;
 
 var opts = {
-  url: 'https://fjwfggy-ys51852.snowflakecomputing.com/api/v2/statements',
+  url: `https://${account_identifier}.snowflakecomputing.com/api/v2/statements`,
   headers: {
     'Content-Type': 'application/json',
     'Authorization': 'Bearer ' + jwt,
@@ -70,21 +80,28 @@ var opts = {
   }
 };
 
-let resp = await got.post(opts);
-if (resp.statusCode == 200) {
-  let payload = JSON.parse(resp.body);
-  
-  console.log(payload.data[0][0]);
-  
-  got.post(`https://insights-collector.newrelic.com/v1/accounts/${account_id}/events`, {
-   headers: {
-    'Api-Key': $secure.INGEST_KEY,
-    'Content-Type': 'application/json'
-  },
-   json: JSON.parse(payload.data[0][0])
- });
-}
-else {
-  console.log(resp.body);
-  return 'failed';
+async function getSnowflakeAccount() {
+  let resp = await got.post(opts);
+
+  if (resp.statusCode == 200) {
+    let payload = JSON.parse(resp.body);
+    
+    console.log(payload.data[0][0]);
+
+    var account_id = process.env.ACCOUNT_ID;
+
+    got.post(`https://insights-collector.newrelic.com/v1/accounts/${account_id}/events`, {
+    headers: {
+      'Api-Key': process.env.NEW_RELIC_LICENSE_KEY,
+      'Content-Type': 'application/json'
+    },
+    json: JSON.parse(payload.data[0][0])
+    });
+  }
+  else {
+    console.log(resp.body);
+    return 'failed';
+  };
 };
+
+getSnowflakeAccount();

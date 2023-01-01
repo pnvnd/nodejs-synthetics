@@ -1,3 +1,4 @@
+/* Create secure credentials in New Relic and replace "process.env.XXX" with "$secure.XXX" */
 var got = require('got');
 
 const sheetID = '1XxiE5T575Twn4enEfwSz1wTnjg6CC71F6b3ZpTzD6xo';
@@ -25,7 +26,7 @@ async function getGsheets() {
       // console.log(main);
       const row = {};
       colz.forEach((ele,ind)=>{
-        console.log(ele);
+        // console.log(ele);
         row[ele] = (main.c[ind] != null) ? main.c[ind].v : '';
       })
       data.push(row);
@@ -34,7 +35,7 @@ async function getGsheets() {
     // console.log(data);
     got.post('https://log-api.newrelic.com/log/v1', {
         headers: {
-          'Api-Key': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXNRAL',
+          'Api-Key': process.env.NEW_RELIC_LICENSE_KEY,
           'Content-Type': 'application/json'
         },
         json: data
