@@ -1,4 +1,4 @@
-/* Create secure credentials in New Relic and replace "process.env.XXX" with "$secure.XXX" */
+let $secure = process.env; // comment out when testing in New Relic
 const got = require('got');
 const crypto = require('crypto');
 // const fs = require('fs');
@@ -6,7 +6,7 @@ const crypto = require('crypto');
 
 // You can use https://www.base64encode.net to decode RSA private keys.
 // If string is too long, split into multiple parts
-const buff = new Buffer.from(process.env.SNOWFLAKE_PRIVATE_KEY_1A + process.env.SNOWFLAKE_PRIVATE_KEY_1B, 'base64');
+const buff = new Buffer.from($secure.SNOWFLAKE_PRIVATE_KEY_1A + $secure.SNOWFLAKE_PRIVATE_KEY_1B, 'base64');
 
 // New Relic supports secure credentials up to 10000 characters
 // const buff = new Buffer.from($secure.SNOWFLAKE_PRIVATE_KEY, 'base64'); 
@@ -20,7 +20,7 @@ MIIFHDBOBgkqhkiG9w0BBQ0wQTApBgkqhkiG9w0BBQwwHAQIS6AhT/z/oEcCAggA
 -----END ENCRYPTED PRIVATE KEY-----`;
 */
 
-const mypassphrase = process.env.SNOWFLAKE_PASSPHRASE;   // use synthetic secure credential here
+const mypassphrase = $secure.SNOWFLAKE_PASSPHRASE;   // use synthetic secure credential here
 const account_identifier = "fjwfggy-ys51852";
 const user = "DATACRUNCH";
 const qualified_username = account_identifier.toUpperCase() + "." + user;
@@ -88,11 +88,11 @@ async function getSnowflakeAccount() {
     
     console.log(payload.data[0][0]);
 
-    var account_id = process.env.ACCOUNT_ID;
+    var account_id = $secure.ACCOUNT_ID;
 
     got.post(`https://insights-collector.newrelic.com/v1/accounts/${account_id}/events`, {
     headers: {
-      'Api-Key': process.env.NEW_RELIC_LICENSE_KEY,
+      'Api-Key': $secure.NEW_RELIC_LICENSE_KEY,
       'Content-Type': 'application/json'
     },
     json: JSON.parse(payload.data[0][0])

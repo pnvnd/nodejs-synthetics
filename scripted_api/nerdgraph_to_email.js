@@ -1,9 +1,11 @@
-var got = require('got');
+let $secure = process.env; // comment out when testing in New Relic
 var assert = require('assert');
+
+var got = require('got');
 var nodemailer = require('nodemailer');
 
 var GRAPH_API = 'https://api.newrelic.com/graphql';
-var HEADERS = { 'Content-Type': 'application/json', 'API-Key': $secure.USER_KEY };
+var HEADERS = { 'Content-Type': 'application/json', 'API-Key': $secure.NEW_RELIC_USER_KEY };
 var ACCOUNT_ID = $secure.ACCOUNT_ID;
 
 // https://docs.newrelic.com/docs/apis/nerdgraph/examples/export-dashboards-pdfpng-using-api/#dash-multiple
@@ -41,44 +43,47 @@ var opts = {
   json: { 'query': query, 'variables': {} }
 };
 
-let resp = await got.post(opts);
+async function sendReport() {
+  let resp = await got.post(opts);
 
-if (resp.statusCode == 200) {
-  let payload = JSON.parse(resp.body);
-  let attachment = payload.data.dashboardCreateSnapshotUrl;
-  //console.log(attachment);
+  if (resp.statusCode == 200) {
+    let payload = JSON.parse(resp.body);
+    let attachment = payload.data.dashboardCreateSnapshotUrl;
+    //console.log(attachment);
 
-  let transporter = nodemailer.createTransport({
-    host: "smtp.netfirms.com",
-    port: 465,
-    auth: {
-        user: "peter@datacrunch.ca",
-        pass: $secure.EMAIL_PASSWORD
-   }
-  });
+    let transporter = nodemailer.createTransport({
+      host: "smtp.netfirms.com",
+      port: 465,
+      auth: {
+          user: "peter@datacrunch.ca",
+          pass: $secure.EMAIL_PASSWORD
+    }
+    });
 
-  var reportDate = new Date(); 
-  var date = reportDate.getFullYear()+'_'+(reportDate.getMonth()+1)+'_'+reportDate.getDate();
+    var reportDate = new Date(); 
+    var date = reportDate.getFullYear()+'_'+(reportDate.getMonth()+1)+'_'+reportDate.getDate();
+    
+    var message = {
+      from: 'peter@datacrunch.ca',
+      to: 'peternguyen@newrelic.com, info@datacrunch.ca',
+      subject: 'Test message from New Relic Synthetic monitor',
+      //text: 'Testing the nodemailer package.',
+      html: emailTemplate,
+      attachments: [{
+        filename: date + '-dashboard.pdf',
+        path: attachment
+      }]
+    };
+
+    transporter.sendMail(message, function(err, info, response){
+      assert.ok(!err, "Error sending email: "+err)
+    });
   
-  var message = {
-    from: 'peter@datacrunch.ca',
-    to: 'peternguyen@newrelic.com, dcortijo@newrelic.com',
-    subject: 'Test message from New Relic Synthetic monitor',
-    //text: 'Testing the nodemailer package.',
-    html: emailTemplate,
-    attachments: [{
-      filename: date + '-dashboard.pdf',
-      path: attachment
-    }]
+  }
+  else {
+    console.log(resp.body);
+    return 'failed';
   };
-
-  transporter.sendMail(message, function(err, info, response){
-    assert.ok(!err, "Error sending email: "+err)
-  });
- 
-}
-else {
-  console.log(resp.body);
-  return 'failed';
 };
 
+sendReport();

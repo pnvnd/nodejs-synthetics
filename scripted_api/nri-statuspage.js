@@ -1,13 +1,13 @@
-/* Create secure credentials in New Relic and replace "process.env.XXX" with "$secure.XXX" */
+let $secure = process.env; // comment out when testing in New Relic
 var got = require('got');
 
-const pageId = process.env.STATUSPAGE_PAGEID;
+const pageId = $secure.STATUSPAGE_PAGEID;
 const url = `https://api.statuspage.io/v1/pages/${pageId}/components`; 
 
 async function getStatuspage() {
   let resp = await got(url, {
     headers: {
-      'Authorization': 'OAuth ' + process.env.STATUSPAGE_API_KEY
+      'Authorization': 'OAuth ' + $secure.STATUSPAGE_API_KEY
     }
   });
 
@@ -17,7 +17,7 @@ async function getStatuspage() {
     
     got.post('https://log-api.newrelic.com/log/v1', {
         headers: {
-          'Api-Key': process.env.NEW_RELIC_LICENSE_KEY,
+          'Api-Key': $secure.NEW_RELIC_LICENSE_KEY,
           'Content-Type': 'application/json'
         },
         json: data

@@ -1,7 +1,8 @@
+let $secure = process.env; // comment out when testing in New Relic
 var got = require('got');
 
 var GRAPH_API = 'https://api.newrelic.com/graphql';
-var HEADERS = { 'Content-Type': 'application/json', 'Api-Key': $secure.USER_KEY };
+var HEADERS = { 'Content-Type': 'application/json', 'Api-Key': $secure.NEW_RELIC_USER_KEY };
 var ACCOUNT_ID = $secure.ACCOUNT_ID;
 
 var nrql = `SELECT count(*) FROM InfrastructureEvent SINCE 24 HOURS AGO FACET changeType`;
@@ -22,17 +23,21 @@ var opts = {
   json: { 'query': query, 'variables': {} }
 };
 
-let resp = await got.post(opts);
+async function getNerdgraph() {
+  let resp = await got.post(opts);
 
-if (resp.statusCode == 200) {
-  let test = JSON.parse(resp.body);
-  let alert = "ChangeType, Count\n";
-  for (var i=0; i<Object.keys(test.data.actor.account.nrql.results).length; i++){
-    alert = alert + test.data.actor.account.nrql.results[i].changeType + ", " + test.data.actor.account.nrql.results[i].count + "\n"
+  if (resp.statusCode == 200) {
+    let test = JSON.parse(resp.body);
+    let alert = "ChangeType, Count\n";
+    for (var i=0; i<Object.keys(test.data.actor.account.nrql.results).length; i++){
+      alert = alert + test.data.actor.account.nrql.results[i].changeType + ", " + test.data.actor.account.nrql.results[i].count + "\n"
+    };
+    got.post($secure.WEBHOOK_GOOGLECHAT, { json: {"text": alert} });
+  }
+  else {
+    console.log(resp.body);
+    return 'failed';
   };
-  got.post($secure.WEBHOOK_GOOGLECHAT, { json: {"text": alert} });
-}
-else {
-  console.log(resp.body);
-  return 'failed';
 };
+
+getNerdgraph();
