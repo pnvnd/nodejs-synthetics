@@ -14,13 +14,35 @@ var s3 = new AWS.S3(
   }
 );
 
-/* The following example gets ACL on the specified bucket. */
-var params = {
-  Bucket: "datacrunch.ca"
- };
+// Function to list bucket names and retrieve bucket lifecycle rules
+function listBucketsAndLifecycleRules() {
+  s3.listBuckets(function(err, data) {
+    if (err) {
+      console.log("Error", err);
+    } else {
+      var bucketNames = data.Buckets.map(bucket => bucket.Name);
+      // console.log(bucketNames);
 
-s3.getBucketLifecycle(params, function(err, data) {
-  assert.ok(data);
-  if (err) console.log(err.code);
-  else console.log(data.Rules);
-});
+      // Get lifecycle rules for each bucket
+      for (var bucketName of bucketNames) {
+        getBucketLifecycleRules(bucketName);
+      }
+    }
+  });
+}
+
+// Function to get bucket lifecycle rules
+function getBucketLifecycleRules(bucketName) {
+  s3.getBucketLifecycle({Bucket: bucketName}, function(err, data) {
+    if (err) {
+      console.log(bucketName, err.code);
+    } else {
+      console.log(`${bucketName} is okay.`);
+    };
+    assert.ok(data);
+  });
+}
+
+// Call the function to list bucket names and retrieve lifecycle rules
+listBucketsAndLifecycleRules();
+

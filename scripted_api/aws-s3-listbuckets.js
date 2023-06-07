@@ -13,6 +13,12 @@ s3.listBuckets(function(err, data) {
   if (err) {
     console.log("Error", err);
   } else {
-    console.log("Success", data.Buckets);
+    var bucketNames = data.Buckets.reduce((acc, bucket) => {
+      acc.push({ Bucket: bucket.Name });
+      return acc;
+    }, []);
+    console.log(bucketNames);
+    // console.log("Success", data.Buckets);
   }
 });
+
