@@ -12,49 +12,54 @@ var s3 = new AWS.S3(
   }
 );
 
-// Function to list bucket names and retrieve bucket details
-function listBucketsAndBucketDetails() {
-  s3.listBuckets(function(err, data) {
-    if (err) {
-      console.log("Error", err);
-    } else {
-      var bucketNames = data.Buckets.map(bucket => bucket.Name);
+// Function to list all bucket names and retrieve bucket details
+async function listAllBucketsAndBucketDetails() {
+  const bucketDetails = [];
 
-      // Get bucket details for each bucket
-      var bucketDetails = bucketNames.map(bucketName => getBucketDetails(bucketName));
+  let marker = null;
+  do {
+    const params = { Marker: marker };
+    const data = await s3.listBuckets(params).promise();
 
-      Promise.all(bucketDetails)
-        .then(results => {
-          console.log(results);
+    if (data.Buckets && data.Buckets.length > 0) {
+      const bucketNames = data.Buckets.map(bucket => bucket.Name);
+      const bucketDetailsPromises = bucketNames.map(bucketName =>
+        getBucketDetails(bucketName)
+      );
 
-          var account_id = $secure.ACCOUNT_ID;
-
-          got.post(`https://insights-collector.newrelic.com/v1/accounts/${account_id}/events`, {
-            headers: {
-              'Api-Key': $secure.NEW_RELIC_LICENSE_KEY,
-              'Content-Type': 'application/json'
-            },
-            json: results
-          });
-        })
-        .catch(err => {
-          console.log("Error retrieving bucket details:", err);
-        });
+      const bucketDetailsResults = await Promise.all(bucketDetailsPromises);
+      bucketDetails.push(...bucketDetailsResults);
     }
+
+    marker = data.NextMarker;
+  } while (marker);
+
+  console.log(bucketDetails);
+
+  var account_id = $secure.ACCOUNT_ID;
+
+  got.post(`https://insights-collector.newrelic.com/v1/accounts/${account_id}/events`, {
+    headers: {
+      'Api-Key': $secure.NEW_RELIC_LICENSE_KEY,
+      'Content-Type': 'application/json'
+    },
+    json: bucketDetails
   });
+
 }
 
 // Function to get bucket details
 function getBucketDetails(bucketName) {
   return new Promise((resolve, reject) => {
-    s3.listObjectsV2({ Bucket: bucketName }, function(err, data) {
+    const params = { Bucket: bucketName };
+    s3.listObjectsV2(params, function(err, data) {
       if (err) {
         reject(err);
       } else {
-        var totalSize = data.Contents.reduce((acc, obj) => acc + obj.Size, 0);
-        var totalObjects = data.KeyCount;
+        const totalSize = data.Contents.reduce((acc, obj) => acc + obj.Size, 0);
+        const totalObjects = data.KeyCount;
 
-        var bucketDetails = {
+        const bucketDetails = {
           "eventType": "s3CustomSample",
           "bucketName": bucketName,
           "bucketSizeBytes": totalSize,
@@ -67,5 +72,5 @@ function getBucketDetails(bucketName) {
   });
 }
 
-// Call the function to list bucket names and retrieve bucket details
-listBucketsAndBucketDetails();
+// Call the function to list all bucket names and retrieve bucket details
+listAllBucketsAndBucketDetails();
