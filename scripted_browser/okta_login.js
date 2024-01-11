@@ -5,7 +5,7 @@ let $webDriver = new $selenium.Builder().forBrowser('chrome').build();
 const By = $selenium.By;
 
 $webDriver.get("https://example.okta.com")
-  // Wait 1- seconds for the page to load and get the <title>
+  // Wait 10 seconds for the page to load and get the <title>
   .then(function(){ $webDriver.wait(function() { return $webDriver.getTitle().then(function(title) { return title === "Example Developer Corp (Production) - Sign In" }) }, 10000);})
   // Wait 5 seconds, then find the username field and type in the username
   .then(function(){ return $webDriver.findElement(By.name("okta-signin-username"), 5000).sendKeys($secure.EXAMPLE_USER);})
