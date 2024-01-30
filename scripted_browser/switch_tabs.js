@@ -1,3 +1,7 @@
+// Chrome 100 Runtime
+let $selenium = require('selenium-webdriver');
+let $webDriver = new $selenium.Builder().forBrowser('chrome').build();
+
 const By = $selenium.By;
 const until = $selenium.until;
 
